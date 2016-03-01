@@ -99,3 +99,45 @@ func main() {
   }
   n.Run(":" + port)
 }
+
+func SimplePage(w http.ResponseWriter, req *http.Request, template string) {
+  r := render.New(render.Options{})
+  r.HTML(w, http.StatusOK, template, nil)
+}
+
+func SimpleAuthenticatedPage(w http.ResponseWriter, req *http.Request, template string) {
+  session := sessions.GetSession(req)
+  sess := session.Get("useremail")
+
+  if sess == nil {
+    http.Redirect(w, req, "/notauthticated", 301)
+  }
+
+  r := render.New(render.OPtions{})
+  r.HTML(w, http.StatusOK, template, nil)
+}
+
+func LoginPost(w http.ResponseWriter, req *http.Request) {
+  session := sessions.GetSession(req)
+
+  username := req.FormValue("inputUsername")
+  password := req.FormValue("inputPassword")
+
+  var (
+    email string
+    password_in_database string
+  )
+
+  err := db.QueryRow("SELECT user_email, user_password FROM users WHERE  user_name = $1", username).Scan(
+    &email, &password_in_database
+  )
+  if err == sql.ErrNoRows {
+    http.Redirect(w, req, "/authfail", 301)
+  } else if err != nil {
+    log.Print(err)
+    http.Redirect(w, req, "/authfail", 301)
+  }
+
+  session.Set("username", email)
+  http.Redirect(w, req, "/home", 302)
+}
